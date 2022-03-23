@@ -167,6 +167,7 @@
     <ClCompile Include="imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
+    <ClCompile Include="SDK\Plugins\Plugins.cpp" />
     <ClCompile Include="SDK\Structures\Documented\RefThing\RefThing.cpp" />
     <ClCompile Include="SDK\Structures\Documented\YYRValue\YYRValue.cpp" />
   </ItemGroup>

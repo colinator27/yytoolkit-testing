@@ -7,11 +7,6 @@
 #include "imgui/imgui_impl_dx9.h"
 #include "imgui/imgui_impl_win32.h"
 
-DllExport inline const char* __PluginGetSDKVersion()
-{
-    return YYSDK_VERSION;
-}
-
 YYRValue EasyGMLCall(YYTKPlugin* pPlugin, const std::string& Name, const std::vector<YYRValue>& rvRef)
 {
     // Get the callbuiltin function from the core API
@@ -28,15 +23,13 @@ YYRValue EasyGMLCall(YYTKPlugin* pPlugin, const std::string& Name, const std::ve
     return Result;
 }
 
-static bool imguiInitialized = false;
-int counter = 0;
+bool imguiInitialized = false;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // Handles all events that happen inside the game.
 YYTKStatus PluginEventHandler(YYTKPlugin* pPlugin, YYTKEventBase* pEvent)
 {
-    printf("Event handler\n");
     switch (pEvent->GetEventType())
     {
     case EVT_WNDPROC:
@@ -48,64 +41,55 @@ YYTKStatus PluginEventHandler(YYTKPlugin* pPlugin, YYTKEventBase* pEvent)
         }
         break;
     case EVT_ENDSCENE:
-        if (counter < 100)
-            counter++;
-        else
+        if (!imguiInitialized)
         {
-            if (!imguiInitialized)
-            {
-                auto CallBuiltin = pPlugin->GetCoreExport<bool(*)(YYRValue& Result,
-                    const std::string& Name,
-                    CInstance* Self,
-                    CInstance* Other,
-                    const std::vector<YYRValue>& Args)>("CallBuiltin");
+            auto CallBuiltin = pPlugin->GetCoreExport<bool(*)(YYRValue& Result,
+                const std::string& Name,
+                CInstance* Self,
+                CInstance* Other,
+                const std::vector<YYRValue>& Args)>("CallBuiltin");
 
-                YYRValue Result, Result2;
-                bool Success = CallBuiltin(Result, "window_device", nullptr, nullptr, {});
-                bool Success2 = CallBuiltin(Result, "window_handle", nullptr, nullptr, {});
+            YYRValue Result, Result2;
+            bool Success = CallBuiltin(Result, "window_device", nullptr, nullptr, {});
+            bool Success2 = CallBuiltin(Result2, "window_handle", nullptr, nullptr, {});
                 
-                if (!Success)
-                {
-                    counter = 0;
-                    printf("window_device() failed");
-                    break;
-                }
-                else
-                {
-                    if (!Success2)
-                    {
-                        counter = 0;
-                        printf("window_handle() failed");
-                        break;
-                    }
-
-                    IDirect3DDevice9* d3d = (IDirect3DDevice9*)Result.As<RValue>().Pointer;
-                    HWND* window = (HWND*)Result2.As<RValue>().Pointer;
-
-                    printf("window device: %p", d3d);
-                    printf("window handle: %p", window);
-                    counter = 0;
-                    break;
-
-                    ImGui::CreateContext();
-                    ImGuiIO& io = ImGui::GetIO();
-                    ImGui_ImplWin32_Init(window);
-                    ImGui_ImplDX9_Init((IDirect3DDevice9*)Result.As<RValue>().Pointer);
-                    imguiInitialized = true;
-                }
+            if (!Success)
+            {
+                printf("window_device() failed\n");
+                break;
             }
+            else
+            {
+                if (!Success2)
+                {
+                    printf("window_handle() failed\n");
+                    break;
+                }
 
-            ImGui_ImplDX9_NewFrame();
-            ImGui_ImplWin32_NewFrame();
-            ImGui::NewFrame();
+                IDirect3DDevice9* d3d = (IDirect3DDevice9*)Result.As<RValue>().Pointer;
+                HWND* window = (HWND*)Result2.As<RValue>().Pointer;
 
-            ImGui::Begin("ImGui Window");
-            ImGui::End();
+                printf("window device: %p\n", d3d);
+                printf("window handle: %p\n", window);
 
-            ImGui::EndFrame();
-            ImGui::Render();
-            ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+                ImGui::CreateContext();
+                ImGuiIO& io = ImGui::GetIO();
+                ImGui_ImplWin32_Init(window);
+                ImGui_ImplDX9_Init(d3d);
+                imguiInitialized = true;
+            }
         }
+
+        ImGui_ImplDX9_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Test plugin");
+        ImGui::End();
+
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
         break;
     }
         
@@ -126,7 +110,6 @@ DllExport YYTKStatus PluginEntry(YYTKPlugin* pPlugin)
     pPlugin->PluginHandler = PluginEventHandler;
     pPlugin->PluginUnload = PluginUnload;
 
-    AttachConsole(GetCurrentProcessId());
     printf("[Test Plugin] - Plugin loaded for YYTK version %s\n", YYSDK_VERSION);
 
     // Tell the core everything went fine.
